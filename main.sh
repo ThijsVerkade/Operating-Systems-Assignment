@@ -33,7 +33,11 @@ Main(){
       DeletePassword
     fi
   else
-    GetHelper
+    if (( $# >= 1 )) && [ "$STATE"  == "ERROR" ]; then
+      echo "ERROR: File/Directory not found"
+    else
+      GetHelper
+    fi
   fi
 }
 
@@ -45,11 +49,11 @@ Delete(){
     PW="false"
     NAME="$TRASH/$TAR.zip"
     if [ $STATE == "FILE" ]; then
-      zip -r $NAME $TAR
+      zip -qq -r $NAME $TAR
       SetLogger
       \rm -rf $TAR
     elif [ $STATE == "DIR" ]; then
-      zip -r $NAME $TAR/*
+      zip -qq -r $NAME $TAR #/*
       SetLogger
       \rm -rf $TAR
     fi
@@ -77,20 +81,64 @@ UnDelete(){
       if [[ "$i" == *"file="* ]]; then
         file="$(echo $i | sed 's/.*=//')"
       fi
+      if [[ "$i" == *"pw="* ]]; then
+        pw="$(echo $i | sed 's/.*=//')"
+      fi
+      if [[ "$i" == *"pass="* ]]; then
+        password="$(echo $i | sed 's/.*=//')"
+      fi
     done
-    if [ -f "$file" ];then
-      ConfirmationReplace
+    
+    if [ -f $(echo $new | sed 's/.*=//') ];then
+     if [ -f "$file" ];then
+        ConfirmationReplace
+      else
+        UnZip
+      fi
+      
     else
-      UnZip
+      echo "ERROR: File/Directory not found"
     fi
-    \rm -rf $(echo $new | sed 's/.*=//')
   else
     echo "ERROR: File/Directory not found"
   fi
 }
 
+CheckPassword(){
+  read -p "The file is password protected. Please enter the password: " answerEncrypt
+  if [[ "$password" == "$answerEncrypt" ]]; then
+    unzip -qq -P $password $(echo $new | sed 's/.*=//')
+    RemoveFile
+  else
+    read -p "Password is wrong. Please enter the password: " answerEncrypt
+    if [[ "$password" == "$answerEncrypt" ]]; then
+      unzip -qq -P $password $(echo $new | sed 's/.*=//')
+      RemoveFile
+    else
+      read -p "Password is wrong. Please enter the password: " answerEncrypt
+      if [[ "$password" == "$answerEncrypt" ]]; then
+        unzip -qq -P $password $(echo $new | sed 's/.*=//')
+        RemoveFile
+      else
+        echo "Password is wrong"
+      fi
+    fi
+  fi
+}
+
+RemoveFile(){
+  grep -v $new ~/trash/logger.txt > ~/trash/logger.txt.tmp
+  mv ~/trash/logger.txt.tmp ~/trash/logger.txt
+  \rm -rf $(echo $new | sed 's/.*=//')
+}
+
 UnZip(){
-  unzip $(echo $new | sed 's/.*=//')
+  if [[ "$pw" == "true" ]]; then
+    CheckPassword
+  else
+    unzip -qq $(echo $new | sed 's/.*=//')
+    RemoveFile
+  fi
 }
 
 # TODO:
@@ -100,75 +148,60 @@ UnZip(){
 GetDeleted(){
   find="file"
   result=""
-  
-  if [ -f "$TAR" ];then
-    while IFS= read -r line; do
-      for i in $(echo $line | sed "s/ | / /g")
-      do
-        if [ $i == "$find=$TAR" ]; then
-          result=$line
-          echo result
-        fi
-      done
-    done < ~/trash/logger.txt
-  fi
+  while IFS= read -r line; do
+    for i in $(echo $line | sed "s/ | / /g")
+    do
+      if [ $i == "$find=$TAR" ]; then
+        result=$line
+      fi
+    done
+  done < ~/trash/logger.txt
 }
 
 # TODO:
 # will  delete  sampleFile  by  password  protected  zipping  the  file  and  moving  it  to trash directory
 DeletePassword(){
   Confirmation
-  read -p "Do you want to set a Password to encrypt your files? (Y/N)" answerEncrypt
-  if [ "$answerEncrypt" == "Y" ] || [ "$answerEncrypt" == "y" ];then
+  # read -p "Do you want to set a Password to encrypt your files? (Y/N) " answerEncrypt
+  # if [ "$answerEncrypt" == "Y" ] || [ "$answerEncrypt" == "y" ];then
     if [ $CONF == "1" ]; then
-      read -s -p "Please set a password to encrypt your files: " passwordEncrypt
       PW="true"
       NAME="$TRASH/$TAR.zip"
       if [ $STATE == "FILE" ]; then
-        read -s -p "Please enter you password: " PWD2
-        if [ $PWD2 = $passwordEncrypt ]; then
-          zip -P $PASS -r $NAME $TAR
-          SetLogger
-          unlink $TAR
-        else
-          echo PWD is niet juist!
-        fi
+        zip -qq -P $PASS -r $NAME $TAR
+        SetLogger
+        unlink $TAR
       elif [ $STATE == "DIR" ]; then
-        read -s -p "Please enter you password: " PWD
-        if [ $PWD = $passwordEncrypt ]; then
-          #echo ik kom erin!
-          zip -P $PASS -r $NAME $TAR #/*
-          SetLogger
-          \rm -rf $TAR
-        else
-          echo PWD is niet juist!
-        fi
+        #echo ik kom erin!
+        zip -qq -P $PASS -r $NAME $TAR #/*
+        SetLogger
+        \rm -rf $TAR
       fi
     fi
-  elif [ "$answerEncrypt" == "N" ] || [ "$answerEncrypt" == "n" ]; then
-    if [ $CONF == "1" ]; then      
-      PW="true"
-      NAME="$TRASH/$TAR.zip"
-      if [ $STATE == "FILE" ]; then              
-          zip -P $PASS -r $NAME $TAR
-          SetLogger
-          unlink $TAR       
-      elif [ $STATE == "DIR" ]; then
-          #echo ik kom erin!
-          zip -P $PASS -r $NAME $TAR #/*
-          SetLogger
-          \rm -rf $TAR       
-      fi
-    fi
-  else
-    echo "Choose (Y/N)"
-  fi
+  # elif [ "$answerEncrypt" == "N" ] || [ "$answerEncrypt" == "n" ]; then
+  # if [ $CONF == "1" ]; then      
+  #   PW="true"
+  #   NAME="$TRASH/$TAR.zip"
+  #   if [ $STATE == "FILE" ]; then              
+  #       zip -P $PASS -r $NAME $TAR
+  #       SetLogger
+  #       unlink $TAR       
+  #   elif [ $STATE == "DIR" ]; then
+  #       #echo ik kom erin!
+  #       zip -P $PASS -r $NAME $TAR #/*
+  #       SetLogger
+  #       \rm -rf $TAR       
+  #   fi
+  # fi
+  # else
+  #   echo "Choose (Y/N)"
+  # fi
 }
 
 SetLogger(){
   path=$(realpath $TAR)
   des=$(echo $path | sed "s/$TAR//")
-  echo "new=$NAME | old=$path | file=$TAR | pw=$PW | destination=$des | state=$STATE" >> ~/trash/logger.txt
+  echo "new=$NAME | old=$path | file=$TAR | pw=$PW | destination=$des | state=$STATE | pass=$PASS" >> ~/trash/logger.txt
 }
 
 Confirmation(){
@@ -182,14 +215,20 @@ Confirmation(){
     Confirmation
   fi
 }
+
 ConfirmationReplace(){
   read -p "Are u sure u want to replace this file/directory? (Y/N) " del
   if [ "$del" == "Y" ] || [ "$del" == "y" ]; then
     DEL="1"
     \rm -rf $file
     UnZip
+    grep -v $new ~/trash/logger.txt > ~/trash/logger.txt.tmp
+    mv ~/trash/logger.txt.tmp ~/trash/logger.txt
   elif [ "$del" == "N" ] || [ "$del" == "n" ]; then
     DEL="0"
+    \rm -rf $(echo $new | sed 's/.*=//')
+    grep -v $new ~/trash/logger.txt > ~/trash/logger.txt.tmp
+    mv ~/trash/logger.txt.tmp ~/trash/logger.txt
   else
     echo "Choose (Y/N)"
     ConfirmationReplace
