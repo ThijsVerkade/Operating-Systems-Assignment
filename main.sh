@@ -1,21 +1,6 @@
 #!/bin/bash
 TRASH=~/trash
 
-# read -p "Are u sure u want to delete this file? (yes/no) " del
-
-# if ["$del" == "yes"]; then
-#     read -p "Which file do you want to delete? " filePath
-#     if [-d "~/trash"]; then #checks for trash folder
-#         zipfile=tar -czvf $filePath.tar.gz ~/trash
-#         rm -r ~/exercises/Safe_delete/$filePath #check if it the correct path
-#     else
-#         cd ~/
-#         mkdir trash
-#     fi
-# else
-#     echo "nothing happend"
-# fi
-
 # Initialize alias
 alias rm=Main
 
@@ -133,18 +118,50 @@ GetDeleted(){
 # will  delete  sampleFile  by  password  protected  zipping  the  file  and  moving  it  to trash directory
 DeletePassword(){
   Confirmation
-  if [ $CONF == "1" ]; then
-    PW="true"
-    NAME="$TRASH/$TAR.zip"
-    if [ $STATE == "FILE" ]; then
-      zip -P $PASS -r $NAME $TAR
-      SetLogger
-      unlink $TAR
-    elif [ $STATE == "DIR" ]; then
-      zip -P $PASS -r $NAME $TAR/*
-      SetLogger
-      \rm -rf $TAR
+  read -p "Do you want to set a Password to encrypt your files? (Y/N)" answerEncrypt
+  if [ "$answerEncrypt" == "Y" ] || [ "$answerEncrypt" == "y" ];then
+    if [ $CONF == "1" ]; then
+      read -s -p "Please set a password to encrypt your files: " passwordEncrypt
+      PW="true"
+      NAME="$TRASH/$TAR.zip"
+      if [ $STATE == "FILE" ]; then
+        read -s -p "Please enter you password: " PWD2
+        if [ $PWD2 = $passwordEncrypt ]; then
+          zip -P $PASS -r $NAME $TAR
+          SetLogger
+          unlink $TAR
+        else
+          echo PWD is niet juist!
+        fi
+      elif [ $STATE == "DIR" ]; then
+        read -s -p "Please enter you password: " PWD
+        if [ $PWD = $passwordEncrypt ]; then
+          #echo ik kom erin!
+          zip -P $PASS -r $NAME $TAR #/*
+          SetLogger
+          \rm -rf $TAR
+        else
+          echo PWD is niet juist!
+        fi
+      fi
     fi
+  elif [ "$answerEncrypt" == "N" ] || [ "$answerEncrypt" == "n" ]; then
+    if [ $CONF == "1" ]; then      
+      PW="true"
+      NAME="$TRASH/$TAR.zip"
+      if [ $STATE == "FILE" ]; then              
+          zip -P $PASS -r $NAME $TAR
+          SetLogger
+          unlink $TAR       
+      elif [ $STATE == "DIR" ]; then
+          #echo ik kom erin!
+          zip -P $PASS -r $NAME $TAR #/*
+          SetLogger
+          \rm -rf $TAR       
+      fi
+    fi
+  else
+    echo "Choose (Y/N)"
   fi
 }
 
